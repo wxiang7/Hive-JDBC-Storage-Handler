@@ -63,6 +63,5 @@ public class JdbcInputFormat extends InputFormatWrapper {
         ((org.apache.hadoop.mapreduce.lib.db.DBInputFormat) realInputFormat)
                 .setConf(job);
         return super.getSplits(job, numSplits);
-
     }
 }

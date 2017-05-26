@@ -183,7 +183,6 @@ public class RecordReaderWrapper<K, V> implements RecordReader<K, V> {
                 valueObj = realReader.getCurrentValue();
 
                 if (key != keyObj) {
-
                     throw new IOException(
                             "InputFormatWrapper can not "
                                     + "support RecordReaders that don't return same key & value "

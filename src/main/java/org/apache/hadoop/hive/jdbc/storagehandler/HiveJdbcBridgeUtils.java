@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+
+import javolution.io.Struct;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
@@ -50,12 +52,14 @@ public class HiveJdbcBridgeUtils {
 	 */
 	private static int hiveTypeToSqlType(String hiveType) throws SerDeException {
 		final String lctype = hiveType.toLowerCase();
-		if ("string".equals(lctype)) {
+		if ("string".equals(lctype) || "varchar".equals(lctype)) {
 			return Types.VARCHAR;
 		} else if ("float".equals(lctype)) {
 			return Types.FLOAT;
 		} else if ("double".equals(lctype)) {
 			return Types.DOUBLE;
+		} else if (lctype.startsWith("decimal")) {
+			return Types.DECIMAL;
 		} else if ("boolean".equals(lctype)) {
 			return Types.BOOLEAN;
 		} else if ("tinyint".equals(lctype)) {
@@ -68,7 +72,9 @@ public class HiveJdbcBridgeUtils {
 			return Types.BIGINT;
 		} else if ("timestamp".equals(lctype)) {
 			return Types.TIMESTAMP;
-		}else if ("date".equals(lctype)) {
+		} else if ("datetime".equals(lctype)) {
+			return Types.TIMESTAMP;
+		} else if ("date".equals(lctype)) {
 			return Types.DATE;
 		} else if ("binary".equals(lctype)) {
 			return Types.BINARY;
@@ -87,6 +93,8 @@ public class HiveJdbcBridgeUtils {
 			return PrimitiveObjectInspectorFactory.javaFloatObjectInspector;
 		case Types.DOUBLE:
 			return PrimitiveObjectInspectorFactory.javaDoubleObjectInspector;
+		case Types.DECIMAL:
+			return PrimitiveObjectInspectorFactory.javaHiveDecimalObjectInspector;
 		case Types.BOOLEAN:
 			return PrimitiveObjectInspectorFactory.javaBooleanObjectInspector;
 		case Types.TINYINT:

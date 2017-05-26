@@ -20,17 +20,20 @@ package org.apache.hadoop.hive.jdbc.storagehandler;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
+import java.math.BigDecimal;
+import java.sql.*;
 import java.util.Arrays;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapred.lib.db.DBWritable;
 
 public class DbRecordWritable implements Writable,
 		org.apache.hadoop.mapred.lib.db.DBWritable,
 		org.apache.hadoop.mapreduce.lib.db.DBWritable {
+
+	private static final Log LOG = LogFactory.getLog(DbRecordWritable.class);
 
 	private Object[] columnValues; // primitive java Object or java.util.List
 	private int[] columnTypes;
@@ -63,9 +66,13 @@ public class DbRecordWritable implements Writable,
 		final int[] types = new int[cols];
 		for (int i = 0; i < cols; i++) {
 			Object col = rs.getObject(i + 1);
+			int tpe = meta.getColumnType(i + 1);
+			if (tpe == Types.DECIMAL) {
+				col = HiveDecimal.create((BigDecimal) col);
+			}
 			columns[i] = col;
 			if (col == null) {
-				types[i] = meta.getColumnType(i + 1);
+				types[i] = tpe;
 			}
 		}
 		this.columnValues = columns;
