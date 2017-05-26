@@ -21,7 +21,6 @@ import java.util.Properties;
 import java.util.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -32,7 +31,6 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.index.IndexSearchCondition;
-import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
 import org.apache.hadoop.hive.ql.index.IndexPredicateAnalyzer;
 import org.apache.hadoop.hive.ql.metadata.HiveStoragePredicateHandler;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
@@ -41,15 +39,9 @@ import org.apache.hadoop.hive.ql.security.authorization.DefaultHiveAuthorization
 import org.apache.hadoop.hive.ql.security.authorization.HiveAuthorizationProvider;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.SerDe;
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.lib.db.DBConfiguration;
 import org.apache.hadoop.hive.ql.metadata.DefaultStorageHandler;
-import org.apache.hadoop.hive.ql.plan.TableScanDesc;
-import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
-import org.apache.hadoop.hive.ql.plan.ExprNodeDescUtils;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 
 /**
@@ -89,25 +81,28 @@ public class JdbcStorageHandler extends DefaultStorageHandler implements
     @Override
     public void configureInputJobProperties(TableDesc tableDesc,
             Map<String, String> jobProperties) {
+        LOG.info("Configuring input job properties");
         configureJobProperties(tableDesc, jobProperties);
     }
 
     @Override
     public void configureOutputJobProperties(TableDesc tableDesc,
             Map<String, String> jobProperties) {
+        LOG.info("Configuring output job properties");
         configureJobProperties(tableDesc, jobProperties);
     }
 
     @Override
     public void configureTableJobProperties(TableDesc tableDesc,
             Map<String, String> jobProperties) {
+        LOG.info("Configuring table job properties");
         configureJobProperties(tableDesc, jobProperties);
     }
 
     private void configureJobProperties(TableDesc tableDesc,
             Map<String, String> jobProperties) {
         if (LOG.isDebugEnabled()) {
-            LOG.debug("tabelDesc: " + tableDesc);
+            LOG.debug("tabelDesc: " + tableDesc.getProperties().toString());
             LOG.debug("jobProperties: " + jobProperties);
         }
 
@@ -154,23 +149,49 @@ public class JdbcStorageHandler extends DefaultStorageHandler implements
                 .put(org.apache.hadoop.mapreduce.lib.db.DBConfiguration.OUTPUT_FIELD_NAMES_PROPERTY,
                         columnNames);
 
+        boolean columnIdExists = false;
+        String columnIdName = null;
+        for (String columnName: columnNames.split(",")) {
+            if (columnName.toLowerCase().equals("id")) {
+                columnIdExists = true;
+                columnIdName = columnName;
+            }
+        }
+
+        if (columnIdExists) {
+            jobProperties
+                    .put(org.apache.hadoop.mapred.lib.db.DBConfiguration.INPUT_ORDER_BY_PROPERTY,
+                            columnIdName);
+            jobProperties
+                    .put(org.apache.hadoop.mapreduce.lib.db.DBConfiguration.INPUT_ORDER_BY_PROPERTY,
+                    columnIdName);
+        }
+
+        LOG.debug("job properties after configured: " + jobProperties);
         for (String key : tblProps.stringPropertyNames()) {
-            if (key.startsWith("mapred.jdbc.")) {
+            if (key.startsWith("mapred.jdbc.") || key.startsWith("mapreduce.jdbc.")) {
                 String value = tblProps.getProperty(key);
-                jobProperties.put(key, value);
-                key = key.replaceAll("mapred", "mapreduce");
                 jobProperties.put(key, value);
             }
         }
 
-        for (String key : tblProps.stringPropertyNames()) {
-            if (key.startsWith("mapreduce.jdbc.")) {
-                String value = tblProps.getProperty(key);
-                jobProperties.put(key, value);
-                key = key.replaceAll("mapreduce", "mapred");
-                jobProperties.put(key, value);
+        Map<String, String> props = new HashMap<>();
+        for (String key: jobProperties.keySet()) {
+            if (key.startsWith("mapred.jdbc.")) {
+                String newKey = key.replaceAll("mapred", "mapreduce");
+                if (!jobProperties.containsKey(newKey)) {
+                    props.put(newKey, jobProperties.get(key));
+                }
+            } else if (key.startsWith("mapreduce.jdbc.")) {
+                String oldKey = key.replace("mapreduce", "mapred");
+                if (!jobProperties.containsKey(oldKey)) {
+                    props.put(oldKey, jobProperties.get(key));
+                }
             }
         }
+        jobProperties.putAll(props);
+
+        LOG.debug("job properties after reconfigured: " + jobProperties);
     }
 
     @Override
@@ -201,7 +222,7 @@ public class JdbcStorageHandler extends DefaultStorageHandler implements
     }
 
     /**
-     * @see DBConfiguration#INPUT_CONDITIONS_PROPERTY
+     * @see org.apache.hadoop.mapreduce.lib.db.DBConfiguration#INPUT_CONDITIONS_PROPERTY
      */
 
     @Override

@@ -16,26 +16,14 @@
  */
 package org.apache.hadoop.hive.jdbc.storagehandler;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Properties;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.hive.serde2.SerDeException;
-import org.apache.hadoop.hive.serde2.SerDeStats;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
-import org.apache.hadoop.hive.serde2.objectinspector.StructField;
-import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
-import org.apache.hadoop.io.Writable;
 import java.sql.*;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.lib.db.DBConfiguration;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.hive.ql.plan.TableScanDesc;
 
 public class JdbcSerDeHelper {
@@ -63,9 +51,9 @@ public class JdbcSerDeHelper {
             int i = 0;
             for (i = 1; i < columnsNumber; i++) {
                 String colName = rsmd.getColumnName(i);
-                String colType = rsmd.getColumnTypeName(i);
+                int colType = rsmd.getColumnType(i);
                 colNames.append(colName + ",");
-                colTypeNames.append(sqlToHiveColumnTypeNames(colType) + ":");
+                colTypeNames.append(sqlTypeToHiveColumnTypeNames(colType) + ":");
             }
             colNames.append(rsmd.getColumnName(i));
             colTypeNames.append(rsmd.getColumnTypeName(i));
@@ -117,36 +105,43 @@ public class JdbcSerDeHelper {
         return query.toString();
     }
 
-    public String sqlToHiveColumnTypeNames(String sqlType)
-            throws SerDeException {
-        final String lctype = sqlType.toLowerCase();
-        if ("varchar".equals(lctype)) {
-            return "STRING";
-        } else if ("float".equals(lctype)) {
-            return "FLOAT";
-        } else if ("double".equals(lctype)) {
-            return "DOUBLE";
-        } else if ("boolean".equals(lctype)) {
-            return "BOOLEAN";
-        } else if ("tinyint".equals(lctype)) {
-            return "TINYINT";
-        } else if ("smallint".equals(lctype)) {
-            return "SMALLINT";
-        } else if ("int".equals(lctype)) {
-            return "INT";
-        } else if ("bigint".equals(lctype)) {
-            return "BIGINT";
-        } else if ("timestamp".equals(lctype)) {
-            return "TIMESTAMP";
-        } else if ("date".equals(lctype)) {
-            return "DATE";
-        } else if ("binary".equals(lctype)) {
-            return "BINARY";
-        } else if (lctype.startsWith("array")) {
-            return "ARRAY<";
+    public String sqlTypeToHiveColumnTypeNames(int sqlType) throws SerDeException {
+        switch (sqlType) {
+            case Types.VARCHAR:
+                return "STRING";
+            case Types.LONGVARCHAR:
+                return "STRING";
+            case Types.FLOAT:
+                return "FLOAT";
+            case Types.REAL:
+                return "FLOAT";
+            case Types.DOUBLE:
+                return "DOUBLE";
+            case Types.DECIMAL:
+                return "DECIMAL";
+            case Types.BOOLEAN:
+                return "BOOLEAN";
+            case Types.TINYINT:
+                return "TINYINT";
+            case Types.BIT:
+                return "BOOLEAN";
+            case Types.SMALLINT:
+                return "SMALLINT";
+            case Types.INTEGER:
+                return "INT";
+            case Types.BIGINT:
+                return "BIGINT";
+            case Types.TIMESTAMP:
+                return "TIMESTAMP";
+            case Types.DATE:
+                return "DATE";
+            case Types.BINARY:
+                return "BINARY";
+            case Types.ARRAY:
+                return "ARRAY<";
+            default:
+                throw new SerDeException("Unrecognized column type: " + sqlType);
         }
-        throw new SerDeException("Unrecognized column type: " + sqlType);
-
     }
 
     public String getColumnNames() {

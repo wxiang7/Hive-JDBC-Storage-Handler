@@ -25,21 +25,23 @@ public class GenericDBRecordReader<T extends DBWritable> extends DBRecordReader<
     public GenericDBRecordReader(DBInputFormat.DBInputSplit split, Class<T> inputClass, Configuration conf, Connection conn, DBConfiguration dbConfig, String cond, String[] fields, String table)
             throws SQLException {
         super(split, inputClass, conf, conn, dbConfig, cond, fields, table);
+        assert(fields != null);
+        assert(fields.length > 0);
         this.conf = conf;
     }
 
     @Override
     protected ResultSet executeQuery(String query) throws SQLException {
-        this.statement = getConnection().prepareStatement(query,
-                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-        statement.setFetchSize(conf.getInt(INPUT_FETCH_SIZE, DEFAULT_INPUT_FETCH_SIZE));
-        return statement.executeQuery();
+        this.setStatement(getConnection().prepareStatement(query,
+                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY));
+        this.getStatement().setFetchSize(conf.getInt(INPUT_FETCH_SIZE, DEFAULT_INPUT_FETCH_SIZE));
+        return this.getStatement().executeQuery();
     }
 
     @Override
     public void close() throws IOException {
         try {
-            statement.cancel();
+            this.getStatement().cancel();
         } catch (SQLException e) {
             // Ignore any errors in cancelling, this is not fatal
             LOG.error("Could not cancel query: "  + this.getSelectQuery());
